@@ -38,8 +38,10 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          # ESTO SOLUCIONA EL ERROR UnicodeEncodeError:
           PYTHONIOENCODING: utf-8
-          PYTHONUTF8: 1
-          LANG: C.UTF-8
-        run: python main_orchestrator.py
+          PYTHONUTF8: "1"
+        # Limpiamos las variables de entorno antes de lanzar el script
+        run: |
+          export SUPABASE_URL=$(echo $SUPABASE_URL | tr -d '\r\n[:cntrl:]')
+          export SUPABASE_KEY=$(echo $SUPABASE_KEY | tr -d '\r\n[:cntrl:]')
+          python main_orchestrator.py
