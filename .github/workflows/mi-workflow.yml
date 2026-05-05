@@ -19,11 +19,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install scrapling supabase requests
-          # Esto instala las dependencias del sistema necesarias para el navegador
+          # Añadimos curl-cffi a la lista
+          pip install scrapling supabase requests curl-cffi
           pip install playwright
           playwright install-deps chromium
-          # Ahora sí, instalamos el motor de scrapling
           scrapling install
           
       - name: Run Orchestrator
