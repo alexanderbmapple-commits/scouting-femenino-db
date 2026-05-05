@@ -19,9 +19,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Añadimos curl-cffi a la lista
-          pip install scrapling supabase requests curl-cffi
-          pip install playwright
+          pip install scrapling supabase requests curl-cffi playwright
+          playwright install chromium
           playwright install-deps chromium
           scrapling install
           
