@@ -31,4 +31,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # ESTO ES LO QUE SOLUCIONA EL ERROR 219:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: 1
+          LANG: C.UTF-8
         run: python main_orchestrator.py
