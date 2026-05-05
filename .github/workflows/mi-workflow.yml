@@ -19,10 +19,13 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install scrapling supabase requests curl-cffi patchright
-          # Usamos solo patchright para gestionar el navegador
+          # Instalamos TODAS las piezas del puzzle juntas
+          pip install scrapling supabase requests curl-cffi patchright playwright
+          
+          # Instalamos los navegadores para ambos motores por seguridad
           python -m patchright install chromium
           python -m patchright install-deps chromium
+          playwright install chromium
           
       - name: Run Orchestrator
         env:
