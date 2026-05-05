@@ -19,10 +19,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Instalamos TODAS las piezas del puzzle juntas
-          pip install scrapling supabase requests curl-cffi patchright playwright
+          # Instalamos absolutamente todo lo que el motor necesita para arrancar
+          pip install scrapling supabase requests curl-cffi patchright playwright msgspec lxml
           
-          # Instalamos los navegadores para ambos motores por seguridad
+          # Configuramos los navegadores
           python -m patchright install chromium
           python -m patchright install-deps chromium
           playwright install chromium
