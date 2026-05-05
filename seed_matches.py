@@ -2,8 +2,9 @@ import requests
 from supabase import create_client
 import os
 
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-
+url = os.getenv("SUPABASE_URL", "").strip()
+key = os.getenv("SUPABASE_KEY", "").strip()
+supabase = create_client(url, key)
 # Lista de ligas y temporadas que quieres
 leagues = [10385, 209, 9812, 208, 212]
 seasons = ["2023/2024", "2024/2025"]
