@@ -3,6 +3,12 @@ import json
 from scraper import FotMobScraper
 from supabase import create_client
 
+import sys
+import io
+# Forzamos la salida estándar a UTF-8
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 # Función de limpieza para evitar errores de codificación (UnicodeEncodeError)
 def clean_data(obj):
     if isinstance(obj, dict):
