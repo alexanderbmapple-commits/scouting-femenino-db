@@ -19,8 +19,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Instalamos absolutamente todo lo que el motor necesita para arrancar
-          pip install scrapling supabase requests curl-cffi patchright playwright msgspec lxml
+          # Añadimos browserforge y python-dotenv a la lista
+          pip install scrapling supabase requests curl-cffi patchright playwright msgspec lxml browserforge python-dotenv
           
           # Configuramos los navegadores
           python -m patchright install chromium
