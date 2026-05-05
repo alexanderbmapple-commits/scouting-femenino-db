@@ -21,7 +21,11 @@ def clean_data(obj):
     return obj
 
 # Configuración de clientes
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+# Limpiamos URL y KEY de posibles espacios o saltos de línea invisibles
+url = os.getenv("SUPABASE_URL", "").strip()
+key = os.getenv("SUPABASE_KEY", "").strip()
+
+supabase = create_client(url, key)
 scraper = FotMobScraper()
 
 def run_pipeline():
