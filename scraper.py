@@ -1,51 +1,44 @@
 import json
-from scrapling import Selector
+import time
+import random
 from scrapling.fetchers import StealthyFetcher
 
 class FotMobScraper:
     def __init__(self):
-        # Inicializamos el fetcher con capacidades de bypass
         self.fetcher = StealthyFetcher()
+        # Headers para que FotMob nos trate como a un usuario real
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Cache-Control": "no-cache",
+            "Referer": "https://www.fotmob.com/"
+        }
 
     def get_match_data(self, match_id):
-        """
-        Obtiene los detalles completos de un partido (alineaciones, stats, disparos)
-        utilizando el endpoint de la API de FotMob.
-        """
-        # Usamos el endpoint de la API que devuelve JSON puro
         url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
+        
+        # Añadimos un pequeño retardo aleatorio para no parecer un bot
+        time.sleep(random.uniform(1.5, 3.0))
+        
         print(f"-> Extrayendo datos del partido: {match_id}")
         
-        response = self.fetcher.fetch(url)
+        # Pasamos los headers en la petición
+        response = self.fetcher.fetch(url, headers=self.headers)
         
         if response.status != 200:
-            print(f"⚠️ Error {response.status} al obtener detalles del partido {match_id}")
+            print(f"⚠️ Error {response.status} en partido {match_id}. FotMob está bloqueando la petición.")
             return None
 
         try:
-            # Cargamos el texto de la respuesta como un diccionario de Python
             data = json.loads(response.text)
-            
-            # Estructura organizada para que el main_orchestrator la procese fácilmente
             content = data.get('content', {})
             return {
                 "general": data.get('general', {}),
                 "stats": content.get('stats', {}),
                 "lineup": content.get('lineup', {}),
                 "shotmap": content.get('shotmap', {}),
-                "raw": data  # Guardamos todo el JSON por si necesitamos métricas extra luego
+                "raw": data
             }
         except Exception as e:
-            print(f"❌ Error parseando el JSON del partido {match_id}: {e}")
+            print(f"❌ Error parseando JSON {match_id}: {e}")
             return None
-
-    def process_metrics(self, data):
-        """
-        Lógica para procesar métricas avanzadas (Posición Dinámica, etc.)
-        Si tu main_orchestrator ya hace esto, puedes dejarlo como un pasamanos.
-        """
-        if not data:
-            return None
-        
-        # Aquí puedes añadir cálculos personalizados si fuera necesario
-        return data
