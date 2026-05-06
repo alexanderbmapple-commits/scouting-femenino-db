@@ -5,20 +5,22 @@ from scrapling import Fetcher
 
 class FotMobScraper:
     def __init__(self):
-        print(">>> CONFIGURANDO MOTOR ADAPTATIVO DE SCRA PLING", flush=True)
-        # Creamos el fetcher base
+        print(">>> ACTIVANDO MOTOR ADAPTATIVO DE SCRA PLING", flush=True)
+        # Inicializamos el fetcher
         self.fetcher = Fetcher()
-        # ACTIVAMOS EL SIGILO: Esto genera una huella digital de navegador real (Chrome/Windows)
-        # Esto soluciona el "warning" que aparecía en tu log anterior.
-        self.fetcher.configure(browser_family='chrome', auto_match=True)
+        # Usamos el argumento 'adaptive' que el sistema nos ha confirmado que acepta
+        # Esto configura automáticamente la mejor estrategia contra firewalls
+        self.fetcher.configure(engine='adaptive')
 
     def get_match_data(self, match_id):
         url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
         
-        # Pausa aleatoria para no saturar la IP
-        time.sleep(random.uniform(5.0, 9.0))
+        # Pausa de seguridad para no quemar la IP de GitHub
+        wait_time = random.uniform(5.0, 9.0)
+        print(f">>> Sigilo Scrapling: Esperando {wait_time:.2f}s para ID {match_id}...", flush=True)
+        time.sleep(wait_time)
         
-        # Headers que Scrapling usará para mimetizarse
+        # Headers recomendados para que el motor adaptativo tenga éxito
         custom_headers = {
             "Accept": "application/json, text/plain, */*",
             "Referer": f"https://www.fotmob.com/es/matches/{match_id}",
@@ -26,25 +28,26 @@ class FotMobScraper:
         }
 
         try:
-            print(f">>> Scrapling Fetching ID: {match_id}...", flush=True)
-            # Usamos el motor adaptativo configurado arriba
+            print(f">>> Scrapling procesando petición adaptativa...", flush=True)
+            # El motor 'adaptive' gestiona internamente la evasión de bloqueos
             response = self.fetcher.get(url, headers=custom_headers)
             
-            print(f">>> STATUS RECIBIDO: {response.status}", flush=True)
+            print(f">>> STATUS: {response.status}", flush=True)
             
             if response.status == 200:
-                print(f"✅ ¡LO TENEMOS! Scrapling ha burlado la seguridad.", flush=True)
+                print(f"✅ ¡CONSEGUIDO! Scrapling ha entrado en {match_id}", flush=True)
                 data = json.loads(response.text)
+                content = data.get('content', {})
                 return {
                     "general": data.get('general', {}),
-                    "stats": data.get('content', {}).get('stats', {}),
-                    "lineup": data.get('content', {}).get('lineup', {}),
-                    "shotmap": data.get('content', {}).get('shotmap', {}),
+                    "stats": content.get('stats', {}),
+                    "lineup": content.get('lineup', {}),
+                    "shotmap": content.get('shotmap', {}),
                     "raw": data
                 }
             
             return None
                 
         except Exception as e:
-            print(f">>> ERROR EN SCRA PLING: {str(e)}", flush=True)
+            print(f">>> ERROR EN MOTOR SCRA PLING: {str(e)}", flush=True)
             return None
