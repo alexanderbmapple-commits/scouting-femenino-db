@@ -3,50 +3,50 @@ import json
 from scrapling import StealthyFetcher
 from supabase import create_client
 
-# Configuración
+# Configuración de credenciales
 url = os.getenv("SUPABASE_URL", "").strip()
 key = os.getenv("SUPABASE_KEY", "").strip()
 supabase = create_client(url, key)
 
 fetcher = StealthyFetcher()
 
-# IDs: 10385 (ES), 209 (UK), 9812 (Champions), 212 (FR)
+# IDs: 10385 (España), 209 (Inglaterra), 9812 (Champions), 212 (Francia)
 leagues = [10385, 209, 9812, 212]
 
 def seed():
     for league_id in leagues:
-        # Probamos con la URL base de la liga, que es la más estable
-        target_url = f"https://www.fotmob.com/leagues/{league_id}/"
-        print(f"--- Extrayendo Liga {league_id} ---")
+        # Usamos la URL base que es la que menos falla
+        target_url = f"https://www.fotmob.com/leagues/{league_id}/overview"
+        print(f"--- Procesando Liga {league_id} ---")
         
         page = fetcher.fetch(target_url)
         
         if page.status != 200:
-            print(f"⚠️ Salto liga {league_id}: Status {page.status}")
+            print(f"⚠️ Salto liga {league_id} por status {page.status}")
             continue
 
         try:
-            # Extraemos el contenido crudo del script NEXT_DATA
-            # Usamos .raw para obtener el string puro y evitar el error de la captura
-            data_element = page.css('script#__NEXT_DATA__::text').first
+            # Extraemos el texto del script usando .text (la forma más compatible)
+            # En Scrapling, page.css() devuelve una lista, tomamos el primero y su texto
+            data_element = page.css('script#__NEXT_DATA__').first
             
             if data_element:
-                # El .raw asegura que sea un string para json.loads
-                json_text = data_element.raw.strip()
+                # Obtenemos el texto plano contenido en la etiqueta
+                json_text = data_element.text.strip()
                 json_data = json.loads(json_text)
                 
                 props = json_data.get('props', {}).get('pageProps', {})
                 
-                # Intentamos encontrar los partidos en las distintas secciones del JSON
+                # Buscamos los partidos (fixtures) en las rutas posibles del JSON
                 fixtures = []
-                # Ruta 1: Overview
-                fixtures = props.get('overview', {}).get('leagueMatches', [])
+                if 'overview' in props:
+                    fixtures = props['overview'].get('leagueMatches', [])
                 
-                # Ruta 2: Si la anterior falla, buscamos en el fallback de la API
                 if not fixtures and 'fallback' in props:
-                    for k in props['fallback']:
-                        if 'allMatches' in props['fallback'][k]:
-                            fixtures = props['fallback'][k]['allMatches']
+                    # Si no está en overview, buscamos en el cache del fallback
+                    for key in props['fallback']:
+                        if 'allMatches' in props['fallback'][key]:
+                            fixtures = props['fallback'][key]['allMatches']
                             break
 
                 if fixtures:
@@ -61,15 +61,16 @@ def seed():
                             "status": "Finished" if m['status'].get('finished') else "Upcoming",
                             "processed": False
                         }
+                        # Guardamos en Supabase
                         supabase.table("matches").upsert(match_data).execute()
-                    print(f"✅ ¡Éxito! {len(fixtures)} partidos cargados para {league_id}")
+                    print(f"✅ ÉXITO: {len(fixtures)} partidos cargados para la liga {league_id}")
                 else:
-                    print(f"❓ No se encontraron datos de partidos en el JSON de {league_id}")
+                    print(f"❓ No encontré partidos en el JSON de {league_id}")
             else:
-                print(f"❌ No se encontró el bloque de datos en el HTML de {league_id}")
+                print(f"❌ No localicé el bloque __NEXT_DATA__ en {league_id}")
 
         except Exception as e:
-            print(f"❌ Error procesando {league_id}: {str(e)}")
+            print(f"❌ Error crítico en {league_id}: {str(e)}")
 
 if __name__ == "__main__":
     seed()
