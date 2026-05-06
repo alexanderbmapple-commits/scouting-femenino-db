@@ -1,19 +1,11 @@
 name: Pro-Wyscout-Femenino-Engine
 
 on:
-  workflow_dispatch: # Permite ejecución manual desde la pestaña Actions
+  workflow_dispatch:
 
 jobs:
   scrape_and_analyze:
     runs-on: ubuntu-latest
-
-    env:
-      PYTHONIOENCODING: utf-8
-      PYTHONUTF8: "1"
-      LANG: "es_ES.UTF-8"
-      LC_ALL: "es_ES.UTF-8"
-      LANGUAGE: "es_ES.UTF-8"
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -33,20 +25,12 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          # Limpiamos posibles saltos de línea en los secretos
-          export SUPABASE_URL=$(echo $SUPABASE_URL | tr -d '\r\n[:cntrl:]')
-          export SUPABASE_KEY=$(echo $SUPABASE_KEY | tr -d '\r\n[:cntrl:]')
-          
-          python main_orchestrator.py
+        run: python main_orchestrator.py
 
-      - name: Guardar Backup de Emergencia (Artifacts)
-        if: always() # Muy importante: se ejecuta aunque el script se corte por tiempo
+      # ESTA ES LA SECCIÓN QUE TE FALTA Y QUE CREA EL BOTÓN DE DESCARGA
+      - name: Generar botón de descarga de datos
+        if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: reporte-ejecucion
-          path: |
-            *.json
-            *.csv
-            *.log
-          retention-days: 5
+          name: datos_extraidos_solares # Nombre del paquete
+          path: resultados_seguridad.json # El archivo que crearemos en Python
