@@ -1,14 +1,12 @@
 name: Pro-Wyscout-Femenino-Engine
 
 on:
-  schedule:
-    - cron: '*/20 * * * *' # Ejecuta cada 20 minutos
   workflow_dispatch: # Permite ejecución manual desde la pestaña Actions
 
 jobs:
   scrape_and_analyze:
     runs-on: ubuntu-latest
-    
+
     env:
       PYTHONIOENCODING: utf-8
       PYTHONUTF8: "1"
@@ -27,10 +25,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Instalamos las librerías necesarias incluyendo Playwright y Scrapling
           pip install scrapling supabase requests curl-cffi patchright playwright msgspec lxml browserforge python-dotenv
-          
-          # Instalamos el navegador Chromium y sus dependencias de sistema (imprescindible en Ubuntu)
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
@@ -38,12 +33,20 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          PYTHONIOENCODING: utf-8
-          PYTHONUTF8: "1"
         run: |
           # Limpiamos posibles saltos de línea en los secretos
           export SUPABASE_URL=$(echo $SUPABASE_URL | tr -d '\r\n[:cntrl:]')
           export SUPABASE_KEY=$(echo $SUPABASE_KEY | tr -d '\r\n[:cntrl:]')
           
-          # Lanzamos el proceso
           python main_orchestrator.py
+
+      - name: Guardar Backup de Emergencia (Artifacts)
+        if: always() # Muy importante: se ejecuta aunque el script se corte por tiempo
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-ejecucion
+          path: |
+            *.json
+            *.csv
+            *.log
+          retention-days: 5
