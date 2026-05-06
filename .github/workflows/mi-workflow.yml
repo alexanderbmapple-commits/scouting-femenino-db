@@ -25,12 +25,15 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python main_orchestrator.py
+        run: |
+          # Limpieza de seguridad de las variables
+          export SUPABASE_URL=$(echo $SUPABASE_URL | tr -d '\r\n[:cntrl:]')
+          export SUPABASE_KEY=$(echo $SUPABASE_KEY | tr -d '\r\n[:cntrl:]')
+          python main_orchestrator.py
 
-      # ESTA ES LA SECCIÓN QUE TE FALTA Y QUE CREA EL BOTÓN DE DESCARGA
       - name: Generar botón de descarga de datos
         if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: datos_extraidos_solares # Nombre del paquete
-          path: resultados_seguridad.json # El archivo que crearemos en Python
+          name: datos_extraidos_seguridad
+          path: resultados_seguridad.json
