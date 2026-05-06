@@ -1,5 +1,5 @@
 import os
-from scrapling import StealthFetcher
+from scrapling import StealthyFetcher
 from supabase import create_client
 
 # Configuración de conexión con limpieza de "tuberías"
@@ -8,7 +8,7 @@ key = os.getenv("SUPABASE_KEY", "").strip()
 supabase = create_client(url, key)
 
 # Inicializamos el fetcher de Scrapling (el "disfraz" profesional)
-fetcher = StealthFetcher()
+fetcher = StealthyFetcher()
 
 leagues = [10385, 209, 9812, 208, 212]
 seasons = ["2023/2024", "2024/2025"]
