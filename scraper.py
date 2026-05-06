@@ -1,29 +1,25 @@
 import json
 import time
 import random
-import re
 from scrapling import Fetcher
 
 class FotMobScraper:
     def __init__(self):
         print(">>> USANDO ARTILLERÍA PESADA: STEALTH BROWSER", flush=True)
         self.fetcher = Fetcher()
-        # Intentamos forzar el modo 'adaptive' con el motor stealth 
-        # para que use Playwright por debajo si está instalado
         self.fetcher.configure(adaptive=True)
 
     def get_match_data(self, match_id):
-        # Intentamos una URL alternativa que a veces no está tan protegida
-        url = f"https://www.fotmob.com/es/match/{match_id}"
+        # URL que confirmamos que da Status 200
+        url = f"https://www.fotmob.com/es/matches/{match_id}"
         
-        # Pausa MUY larga. Si la IP está marcada, ir rápido solo empeora el ban.
-        time.sleep(random.uniform(15.0, 25.0))
+        # Pausa aleatoria para evitar bloqueos
+        time.sleep(random.uniform(5.0, 10.0))
         
-        # Cambiamos el referer a Google para simular tráfico de búsqueda orgánico
         headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "referer": "https://www.google.com/",
-            "upgrade-insecure-requests": "1"
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
 
         try:
@@ -33,15 +29,44 @@ class FotMobScraper:
             print(f">>> STATUS RECIBIDO: {response.status}", flush=True)
             
             if response.status == 200:
-                print(f"✅ ✅ ✅ ¡LO LOGRAMOS! El HTML ha respondido.", flush=True)
-                match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)
-                if match:
-                    all_data = json.loads(match.group(1))
+                # USAMOS SELECTOR CSS (Más fiable que Regex)
+                # Buscamos el script que tiene el ID __NEXT_DATA__
+                script_content = response.css('script#__NEXT_DATA__::text').first()
+                
+                if script_content:
+                    all_data = json.loads(script_content)
+                    # Navegamos por la estructura de FotMob
                     props = all_data.get('props', {}).get('pageProps', {})
-                    return props.get('content', {}).get('matchDetails', {})
+                    content = props.get('content', {})
+                    match_details = content.get('matchDetails', {})
+                    
+                    if match_details:
+                        print(f"✅ ✅ ✅ ¡DATOS EXTRAÍDOS! (ID: {match_id})", flush=True)
+                        return content # Devolvemos 'content' porque suele traer más info útil
+                
+                print(f"⚠️ No se encontró el bloque de datos en el HTML del match {match_id}", flush=True)
             
             return None
                 
         except Exception as e:
-            print(f">>> ERROR EN MOTOR: {str(e)}", flush=True)
+            print(f">>> ERROR EN MOTOR SCRAPER: {str(e)}", flush=True)
             return None
+
+    def process_metrics(self, data):
+        """
+        Esta función procesa el JSON bruto y lo convierte en un formato 
+        listo para tu tabla 'player_match_stats' en Supabase.
+        """
+        # Extraemos lo básico para que la inserción no falle
+        details = data.get('matchDetails', {})
+        
+        # Ejemplo de mapeo de campos (Ajusta según tus columnas en Supabase)
+        metrics = {
+            "match_id": details.get('matchId'),
+            "match_date": details.get('matchTimeUTC'),
+            "home_team": details.get('homeTeam', {}).get('name'),
+            "away_team": details.get('awayTeam', {}).get('name'),
+            "raw_json": json.dumps(data) # Guardamos todo el JSON por si acaso
+        }
+        
+        return metrics
