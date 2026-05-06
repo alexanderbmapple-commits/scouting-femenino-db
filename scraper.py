@@ -1,21 +1,21 @@
 import json
 import time
 import random
-import re
 from scrapling import Fetcher
 
 class FotMobScraper:
     def __init__(self):
-        print(">>> MOTOR DE EXTRACCIÓN HTML ACTIVADO", flush=True)
+        print(">>> REVOLVIENDO AL MODO DE ÉXITO (HTML-ACCESS)", flush=True)
         self.fetcher = Fetcher()
+        # Mantenemos 'adaptive' porque es el que tu versión de Scrapling acepta sin errores
         self.fetcher.configure(adaptive=True)
 
     def get_match_data(self, match_id):
-        # Usamos la URL que ya sabemos que funciona según tu última captura
+        # La URL que nos dio el 200 en la Captura de pantalla 2026-05-06 a las 12.16.48.jpg
         url = f"https://www.fotmob.com/es/matches/{match_id}"
         
-        # Mantenemos el sigilo pero bajamos un poco la pausa ya que el 200 es estable
-        time.sleep(random.uniform(5.0, 10.0))
+        # Pausa de seguridad para mantener el acceso
+        time.sleep(random.uniform(7.0, 12.0))
         
         headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -24,36 +24,32 @@ class FotMobScraper:
         }
 
         try:
-            print(f">>> Leyendo HTML del partido {match_id}...", flush=True)
+            print(f">>> Intentando acceso al partido {match_id}...", flush=True)
             response = self.fetcher.get(url, headers=headers)
             
+            print(f">>> STATUS: {response.status}", flush=True)
+            
             if response.status == 200:
-                # El JSON está encerrado en <script id="__NEXT_DATA__" ...>...</script>
-                # Usamos un regex más robusto por si hay espacios o saltos de línea
-                pattern = r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>'
-                match = re.search(pattern, response.text, re.DOTALL)
+                print("✅ Conexión establecida. Extrayendo datos...", flush=True)
                 
-                if match:
-                    print("✅ Bloque de datos localizado. Procesando...", flush=True)
-                    raw_json = match.group(1).strip()
-                    all_data = json.loads(raw_json)
-                    
-                    # Estructura típica de Next.js en FotMob:
-                    # props -> pageProps -> content -> matchDetails
-                    props = all_data.get('props', {}).get('pageProps', {})
+                # En lugar de Regex, usamos el selector de Scrapling para buscar el script
+                # Esto es mucho más seguro y menos propenso a fallos
+                script_tag = response.css('script#__NEXT_DATA__::text').first()
+                
+                if script_tag:
+                    data = json.loads(script_tag)
+                    # Navegamos por la estructura de FotMob
+                    props = data.get('props', {}).get('pageProps', {})
                     match_details = props.get('content', {}).get('matchDetails', {})
                     
                     if match_details:
+                        print(f"✅ Datos de {match_id} extraídos correctamente.", flush=True)
                         return match_details
-                    else:
-                        print("⚠️ El JSON se leyó pero 'matchDetails' está vacío.", flush=True)
-                else:
-                    print("❌ Error: No se encontró la etiqueta __NEXT_DATA__.", flush=True)
-            else:
-                print(f"❌ Error de red: Status {response.status}", flush=True)
+                
+                print("⚠️ No se pudo encontrar el bloque __NEXT_DATA__ en el HTML.", flush=True)
             
             return None
                 
         except Exception as e:
-            print(f">>> ERROR DE EXTRACCIÓN: {str(e)}", flush=True)
+            print(f">>> ERROR EN PROCESO: {str(e)}", flush=True)
             return None
