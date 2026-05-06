@@ -8,68 +8,67 @@ key = os.getenv("SUPABASE_KEY", "").strip()
 supabase = create_client(url, key)
 fetcher = StealthyFetcher()
 
-# IDs: España (10385), Inglaterra (209), Champions (9812), Francia (212)
-leagues = [10385, 209, 9812, 212]
+# Mapeo de URLs manual para evitar el 404
+# He verificado que estas rutas son las que FotMob usa actualmente para la web
+league_configs = [
+    {"id": 10385, "name": "Liga F (España)", "url": "https://www.fotmob.com/leagues/10385/overview/liga-f"},
+    {"id": 209, "name": "WSL (Inglaterra)", "url": "https://www.fotmob.com/leagues/209/overview/wsl"},
+    {"id": 9812, "name": "Champions Femenina", "url": "https://www.fotmob.com/leagues/9812/overview/womens-champions-league"},
+    {"id": 212, "name": "D1 Arkema (Francia)", "url": "https://www.fotmob.com/leagues/212/overview/d1-arkema"}
+]
 
 def find_matches_recursively(data):
-    """Busca cualquier lista que parezca contener partidos en el JSON"""
     if isinstance(data, dict):
-        # Si encontramos 'allMatches' o 'leagueMatches', lo devolvemos
-        if 'allMatches' in data and data['allMatches']:
-            return data['allMatches']
-        if 'leagueMatches' in data and data['leagueMatches']:
-            return data['leagueMatches']
-        # Si no, seguimos buscando en los hijos
+        if 'allMatches' in data and data['allMatches']: return data['allMatches']
+        if 'leagueMatches' in data and data['leagueMatches']: return data['leagueMatches']
         for v in data.values():
-            result = find_matches_recursively(v)
-            if result: return result
+            res = find_matches_recursively(v)
+            if res: return res
     elif isinstance(data, list):
         for item in data:
-            result = find_matches_recursively(item)
-            if result: return result
+            res = find_matches_recursively(item)
+            if res: return res
     return None
 
 def seed():
-    for league_id in leagues:
-        # Probamos con la URL de la temporada actual (2025/2026)
-        target_url = f"https://www.fotmob.com/leagues/{league_id}/overview"
-        print(f"--- Escaneando Liga {league_id} ---")
+    for config in league_configs:
+        print(f"--- Intentando con {config['name']} ---")
+        page = fetcher.fetch(config['url'])
         
-        page = fetcher.fetch(target_url)
         if page.status != 200:
-            print(f"⚠️ Error {page.status} en {league_id}")
-            continue
+            print(f"⚠️ Sigue dando error {page.status} en {config['name']}. Probando URL base...")
+            page = fetcher.fetch(f"https://www.fotmob.com/leagues/{config['id']}/")
 
-        try:
-            data_element = page.css('script#__NEXT_DATA__').first
-            if data_element:
-                json_data = json.loads(data_element.text.strip())
-                
-                # Buscamos los partidos en TODO el objeto JSON
-                fixtures = find_matches_recursively(json_data)
+        if page.status == 200:
+            try:
+                data_element = page.css('script#__NEXT_DATA__').first
+                if data_element:
+                    json_data = json.loads(data_element.text.strip())
+                    fixtures = find_matches_recursively(json_data)
 
-                if fixtures:
-                    count = 0
-                    for m in fixtures:
-                        # Verificamos que tenga los datos mínimos
-                        if 'id' in m and 'home' in m:
-                            match_data = {
-                                "id": str(m['id']),
-                                "league_id": league_id,
-                                "season": "2025/2026",
-                                "home_team": m['home']['name'],
-                                "away_team": m['away']['name'],
-                                "match_date": m['status'].get('utcTime'),
-                                "status": "Finished" if m['status'].get('finished') else "Upcoming",
-                                "processed": False
-                            }
-                            supabase.table("matches").upsert(match_data).execute()
-                            count += 1
-                    print(f"✅ ¡CONSEGUIDO! {count} partidos insertados para {league_id}")
-                else:
-                    print(f"❓ No se detectaron listas de partidos en el JSON de {league_id}")
-        except Exception as e:
-            print(f"❌ Error en {league_id}: {e}")
+                    if fixtures:
+                        count = 0
+                        for m in fixtures:
+                            if 'id' in m and 'home' in m:
+                                match_data = {
+                                    "id": str(m['id']),
+                                    "league_id": config['id'],
+                                    "season": "2025/2026",
+                                    "home_team": m['home']['name'],
+                                    "away_team": m['away']['name'],
+                                    "match_date": m['status'].get('utcTime'),
+                                    "status": "Finished" if m['status'].get('finished') else "Upcoming",
+                                    "processed": False
+                                }
+                                supabase.table("matches").upsert(match_data).execute()
+                                count += 1
+                        print(f"✅ ÉXITO: {count} partidos de {config['name']} sincronizados.")
+                    else:
+                        print(f"❓ No se encontraron partidos en el JSON de {config['name']}")
+            except Exception as e:
+                print(f"❌ Error en {config['name']}: {e}")
+        else:
+            print(f"❌ Imposible acceder a {config['name']} (Status {page.status})")
 
 if __name__ == "__main__":
     seed()
