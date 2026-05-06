@@ -1,38 +1,58 @@
-import requests
-from supabase import create_client
 import os
+from scrapling import StealthFetcher
+from supabase import create_client
 
+# Configuración de conexión con limpieza de "tuberías"
 url = os.getenv("SUPABASE_URL", "").strip()
 key = os.getenv("SUPABASE_KEY", "").strip()
 supabase = create_client(url, key)
-# Lista de ligas y temporadas que quieres
+
+# Inicializamos el fetcher de Scrapling (el "disfraz" profesional)
+fetcher = StealthFetcher()
+
 leagues = [10385, 209, 9812, 208, 212]
 seasons = ["2023/2024", "2024/2025"]
 
 def seed():
     for league_id in leagues:
         for season in seasons:
-            # FotMob API interna para obtener calendario (simplificado)
-            url = f"https://www.fotmob.com/api/leagues?id={league_id}&season={season}"
-            response = requests.get(url).json()
+            target_url = f"https://www.fotmob.com/api/leagues?id={league_id}&season={season}"
+            print(f"Scrapeando sin muros: {target_url}")
             
-            # Extraemos los partidos de las rondas/semanas
-            matches = response.get('matches', {}).get('allMatches', [])
+            # Usamos Scrapling para saltar el bloqueo
+            page = fetcher.get(target_url)
             
-            for m in matches:
-                data = {
-                    "id": str(m['id']),
-                    "league_id": league_id,
-                    "season": season,
-                    "home_team": m['home']['name'],
-                    "away_team": m['away']['name'],
-                    "match_date": m['status']['utcTime'],
-                    "status": "Finished", # Como es backfill, ya terminaron
-                    "processed": False
-                }
-                # Insertamos en Supabase (ignora si ya existe)
-                supabase.table("matches").upsert(data).execute()
-    print("Semillado completado. ¡Ya tienes la lista de trabajo!")
+            if page.status_code != 200:
+                print(f"Error {page.status_code} en {league_id}. Probando siguiente...")
+                continue
+
+            try:
+                # Scrapling devuelve la respuesta en .json_content si es una API
+                data = page.json_content
+                matches = data.get('matches', {}).get('allMatches', [])
+                
+                if not matches:
+                    print(f"No se encontraron partidos para liga {league_id}")
+                    continue
+
+                for m in matches:
+                    match_data = {
+                        "id": str(m['id']),
+                        "league_id": league_id,
+                        "season": season,
+                        "home_team": m['home']['name'],
+                        "away_team": m['away']['name'],
+                        "match_date": m['status']['utcTime'],
+                        "status": "Finished",
+                        "processed": False
+                    }
+                    # Insertamos en Supabase (upsert para no duplicar)
+                    supabase.table("matches").upsert(match_data).execute()
+                
+                print(f"Liga {league_id} semillada con éxito.")
+
+            except Exception as e:
+                print(f"Error procesando datos de {league_id}: {e}")
 
 if __name__ == "__main__":
     seed()
