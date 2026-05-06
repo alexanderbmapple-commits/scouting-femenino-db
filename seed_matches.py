@@ -22,7 +22,7 @@ def seed():
             # Usamos Scrapling para saltar el bloqueo
             page = fetcher.fetch(target_url)
             
-            if page.status_code != 200:
+            if page.status != 200:
                 print(f"Error {page.status_code} en {league_id}. Probando siguiente...")
                 continue
 
