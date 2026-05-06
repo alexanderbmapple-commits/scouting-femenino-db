@@ -1,50 +1,60 @@
 import json
 import time
 import random
-import requests
+from scrapling import Fetcher
 
 class FotMobScraper:
     def __init__(self):
-        print("DEBUG: Inicializando FotMobScraper con Requests")
-        self.session = requests.Session()
-        
+        print(">>> ACTIVANDO MOTOR SCALING STEALTH", flush=True)
+        # Inicializamos el Fetcher que gestiona automáticamente 
+        # las huellas digitales del navegador para evitar bloqueos
+        self.fetcher = Fetcher()
+
     def get_match_data(self, match_id):
         url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
         
-        # Bajamos la pausa a un rango menor para testear rápido
-        wait_time = random.uniform(2.0, 4.0)
-        print(f"DEBUG: Esperando {wait_time:.2f}s antes de pedir ID {match_id}...")
+        # Humanización obligatoria para no quemar la IP de GitHub
+        wait_time = random.uniform(5.0, 8.0)
+        print(f">>> Sigilo Scrapling: Esperando {wait_time:.2f}s para ID {match_id}...", flush=True)
         time.sleep(wait_time)
         
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        # Scrapling permite enviar headers que parecen venir de una navegación real
+        custom_headers = {
             "Accept": "application/json, text/plain, */*",
             "Referer": f"https://www.fotmob.com/es/matches/{match_id}",
-            "Origin": "https://www.fotmob.com"
+            "Origin": "https://www.fotmob.com",
+            "X-Requested-With": "XMLHttpRequest"
         }
-        
-        try:
-            print(f"DEBUG: Lanzando petición a: {url}")
-            response = self.session.get(url, headers=headers, timeout=15)
-            
-            print(f"DEBUG: Respuesta recibida. Status Code: {response.status_code}")
-            
-            if response.status_code != 200:
-                print(f"⚠️ Error de servidor en {match_id}: {response.status_code}")
-                return None
 
-            data = response.json()
-            print(f"✅ JSON parseado correctamente para {match_id}")
+        try:
+            # Usamos el método fetch de Scrapling que por defecto intenta 
+            # evadir detecciones básicas de bots
+            response = self.fetcher.get(url, headers=custom_headers)
             
-            content = data.get('content', {})
-            return {
-                "general": data.get('general', {}),
-                "stats": content.get('stats', {}),
-                "lineup": content.get('lineup', {}),
-                "shotmap": content.get('shotmap', {}),
-                "raw": data
-            }
+            print(f">>> RESPUESTA SCRA PLING: {response.status}", flush=True)
             
+            if response.status == 200:
+                print(f"✅ ¡ÉXITO! Datos capturados por Scrapling para {match_id}", flush=True)
+                data = json.loads(response.text)
+                content = data.get('content', {})
+                return {
+                    "general": data.get('general', {}),
+                    "stats": content.get('stats', {}),
+                    "lineup": content.get('lineup', {}),
+                    "shotmap": content.get('shotmap', {}),
+                    "raw": data
+                }
+            
+            elif response.status == 404:
+                print(f"⚠️ El servidor sigue detectando el bot (404). Reintentando con cabeceras de App...", flush=True)
+                # Intento extra cambiando una cabecera clave
+                custom_headers["User-Agent"] = "com.fotmob.android/1.0"
+                response = self.fetcher.get(url, headers=custom_headers)
+                if response.status == 200:
+                    return json.loads(response.text)
+
+            return None
+                
         except Exception as e:
-            print(f"❌ Error físico en la petición: {str(e)}")
+            print(f">>> ERROR EN SCRA PLING: {str(e)}", flush=True)
             return None
