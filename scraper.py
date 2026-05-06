@@ -5,28 +5,31 @@ from scrapling.fetchers import StealthyFetcher
 
 class FotMobScraper:
     def __init__(self):
+        # Configuramos el fetcher para que use una identidad de navegador real
         self.fetcher = StealthyFetcher()
-        # Headers para que FotMob nos trate como a un usuario real
+        # Esta configuración ayuda a evitar la detección de bots en la API
+        self.fetcher.configure(browser='chrome', platform='windows')
+        
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
-            "Cache-Control": "no-cache",
-            "Referer": "https://www.fotmob.com/"
+            "Accept-Language": "es-ES,es;q=0.9",
+            "Referer": "https://www.fotmob.com/",
+            "Origin": "https://www.fotmob.com"
         }
 
     def get_match_data(self, match_id):
         url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
         
-        # Añadimos un pequeño retardo aleatorio para no parecer un bot
-        time.sleep(random.uniform(1.5, 3.0))
+        # EL SECRETO: Pausa humana obligatoria. 
+        # Si vas muy rápido, te bloquean la IP de GitHub temporalmente.
+        wait_time = random.uniform(3.0, 6.0)
+        print(f"-> Esperando {wait_time:.2f}s para humanizar... (Partido: {match_id})")
+        time.sleep(wait_time)
         
-        print(f"-> Extrayendo datos del partido: {match_id}")
-        
-        # Pasamos los headers en la petición
         response = self.fetcher.fetch(url, headers=self.headers)
         
         if response.status != 200:
-            print(f"⚠️ Error {response.status} en partido {match_id}. FotMob está bloqueando la petición.")
+            print(f"⚠️ Seguimos con 404/Block en {match_id}. FotMob está endureciendo el acceso.")
             return None
 
         try:
@@ -40,5 +43,5 @@ class FotMobScraper:
                 "raw": data
             }
         except Exception as e:
-            print(f"❌ Error parseando JSON {match_id}: {e}")
+            print(f"❌ Error en JSON {match_id}: {e}")
             return None
