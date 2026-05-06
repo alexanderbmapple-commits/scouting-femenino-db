@@ -28,7 +28,7 @@ def seed():
 
             try:
                 # Scrapling devuelve la respuesta en .json_content si es una API
-                data = page.json_content
+                data = page.json()
                 matches = data.get('matches', {}).get('allMatches', [])
                 
                 if not matches:
