@@ -44,4 +44,4 @@ jobs:
         run: |
           export SUPABASE_URL=$(echo $SUPABASE_URL | tr -d '\r\n[:cntrl:]')
           export SUPABASE_KEY=$(echo $SUPABASE_KEY | tr -d '\r\n[:cntrl:]')
-          python seed_matches.py
+          python main_orchestrator.py
