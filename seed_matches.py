@@ -23,7 +23,7 @@ def seed():
             page = fetcher.fetch(target_url)
             
             if page.status != 200:
-                print(f"Error {page.status_code} en {league_id}. Probando siguiente...")
+                print(f"Error {page.status} en {league_id}. Probando siguiente...")
                 continue
 
             try:
