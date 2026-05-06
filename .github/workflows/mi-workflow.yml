@@ -2,46 +2,48 @@ name: Pro-Wyscout-Femenino-Engine
 
 on:
   schedule:
-    - cron: '*/20 * * * *' # Cada 20 minutos
-  workflow_dispatch: # Permite ejecución manual
+    - cron: '*/20 * * * *' # Ejecuta cada 20 minutos
+  workflow_dispatch: # Permite ejecución manual desde la pestaña Actions
 
 jobs:
   scrape_and_analyze:
     runs-on: ubuntu-latest
-    # AÑADIMOS ESTO AQUÍ ARRIBA (Global)
+    
     env:
       PYTHONIOENCODING: utf-8
       PYTHONUTF8: "1"
       LANG: "es_ES.UTF-8"
       LC_ALL: "es_ES.UTF-8"
       LANGUAGE: "es_ES.UTF-8"
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-      
-      # ... resto de pasos igual ...
 
-      
-        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
       - name: Install Dependencies
         run: |
-          # Añadimos browserforge y python-dotenv a la lista
+          # Instalamos las librerías necesarias incluyendo Playwright y Scrapling
           pip install scrapling supabase requests curl-cffi patchright playwright msgspec lxml browserforge python-dotenv
           
-          # Configuramos los navegadores
-          python -m patchright install chromium
-          python -m patchright install-deps chromium
-          playwright install chromium
-          
+          # Instalamos el navegador Chromium y sus dependencias de sistema (imprescindible en Ubuntu)
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
       - name: Run Orchestrator
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           PYTHONIOENCODING: utf-8
           PYTHONUTF8: "1"
-        # Limpiamos las variables de entorno antes de lanzar el script
         run: |
+          # Limpiamos posibles saltos de línea en los secretos
           export SUPABASE_URL=$(echo $SUPABASE_URL | tr -d '\r\n[:cntrl:]')
           export SUPABASE_KEY=$(echo $SUPABASE_KEY | tr -d '\r\n[:cntrl:]')
+          
+          # Lanzamos el proceso
           python main_orchestrator.py
