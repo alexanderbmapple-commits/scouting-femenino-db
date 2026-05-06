@@ -20,7 +20,7 @@ def seed():
             print(f"Scrapeando sin muros: {target_url}")
             
             # Usamos Scrapling para saltar el bloqueo
-            page = fetcher.get(target_url)
+            page = fetcher.fetch(target_url)
             
             if page.status_code != 200:
                 print(f"Error {page.status_code} en {league_id}. Probando siguiente...")
