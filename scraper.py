@@ -4,46 +4,48 @@ from scrapling.fetchers import StealthyFetcher
 
 class FotMobScraper:
     def __init__(self):
+        # Inicializamos el fetcher con capacidades de bypass
         self.fetcher = StealthyFetcher()
 
     def get_match_data(self, match_id):
-        url = f"https://www.fotmob.com/matches/{match_id}"
-        response = self.fetcher.get(url)
-        selector = Selector(response.text)
+        """
+        Obtiene los detalles completos de un partido (alineaciones, stats, disparos)
+        utilizando el endpoint de la API de FotMob.
+        """
+        # Usamos el endpoint de la API que devuelve JSON puro
+        url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
+        print(f"-> Extrayendo datos del partido: {match_id}")
         
-        # Extracción del JSON embebido
-        raw_json = selector.css('script#__NEXT_DATA__::text').first()
-        if not raw_json:
+        response = self.fetcher.fetch(url)
+        
+        if response.status != 200:
+            print(f"⚠️ Error {response.status} al obtener detalles del partido {match_id}")
             return None
+
+        try:
+            # Cargamos el texto de la respuesta como un diccionario de Python
+            data = json.loads(response.text)
             
-        data = json.loads(raw_json)
-        props = data.get('props', {}).get('pageProps', {})
-        content = props.get('content', {})
-        
-        return {
-            "general": props.get('general', {}),
-            "stats": content.get('stats', {}),
-            "lineup": content.get('lineup', {}),
-            "shotmap": content.get('shotmap', {}),
-            "raw": data # Para guardar en el bucket
-        }
+            # Estructura organizada para que el main_orchestrator la procese fácilmente
+            content = data.get('content', {})
+            return {
+                "general": data.get('general', {}),
+                "stats": content.get('stats', {}),
+                "lineup": content.get('lineup', {}),
+                "shotmap": content.get('shotmap', {}),
+                "raw": data  # Guardamos todo el JSON por si necesitamos métricas extra luego
+            }
+        except Exception as e:
+            print(f"❌ Error parseando el JSON del partido {match_id}: {e}")
+            return None
 
     def process_metrics(self, data):
-        # Lógica de Posición Dinámica y Métricas Pro
-        lineup = data['lineup'].get('lineup', [])
-        # Aquí se implementaría la lógica de coordenadas para el Packing
-        # Por brevedad, simulamos el retorno de las métricas calculadas
-        metrics = {
-            "packing": self._calculate_packing(data),
-            "opp_half_rec": self._calculate_recoveries(data),
-            "dynamic_pos": self._infer_position(data)
-        }
-        return metrics
-
-    def _calculate_packing(self, data):
-        # Lógica: Pases que rompen líneas basadas en coordenadas iniciales del rival
-        return 0 # Placeholder funcional
-
-    def _infer_position(self, data):
-        # Análisis de "average positions" para re-categorizar jugadora
-        return "Winger"
+        """
+        Lógica para procesar métricas avanzadas (Posición Dinámica, etc.)
+        Si tu main_orchestrator ya hace esto, puedes dejarlo como un pasamanos.
+        """
+        if not data:
+            return None
+        
+        # Aquí puedes añadir cálculos personalizados si fuera necesario
+        return data
