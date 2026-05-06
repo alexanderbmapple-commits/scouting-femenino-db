@@ -1,63 +1,72 @@
 import os
+import json
 from scrapling import StealthyFetcher
 from supabase import create_client
 
-# Conexión limpia
+# Configuración
 url = os.getenv("SUPABASE_URL", "").strip()
 key = os.getenv("SUPABASE_KEY", "").strip()
 supabase = create_client(url, key)
 
 fetcher = StealthyFetcher()
 
-# Configuración de Ligas Femeninas
-# 10385: España | 209: Inglaterra | 9812: Champions | 212: Francia
+# Ligas: 10385 (ES), 209 (UK), 9812 (Champions), 212 (FR)
 leagues = [10385, 209, 9812, 212]
-# Probamos con el ID de temporada que FotMob usa internamente para 25/26
-seasons = ["20252026", "2025"] 
 
 def seed():
     for league_id in leagues:
-        success = False
-        for season in seasons:
-            # URL simplificada que suele saltarse mejor los bloqueos de API
-            target_url = f"https://www.fotmob.com/api/leagues?id={league_id}"
-            print(f"--- Consultando Liga {league_id} ---")
-            
-            page = fetcher.fetch(target_url)
-            
-            if page.status == 200:
-                try:
-                    data = page.json()
-                    # Buscamos los partidos en la sección de 'matches'
-                    matches_data = data.get('matches', {})
-                    all_matches = matches_data.get('allMatches', [])
+        # Intentamos obtener la página de fixtures de la temporada actual
+        # La URL pública es más difícil de bloquear que la API interna
+        target_url = f"https://www.fotmob.com/leagues/{league_id}/fixtures/"
+        print(f"--- Extrayendo Liga {league_id} desde {target_url} ---")
+        
+        page = fetcher.fetch(target_url)
+        
+        if page.status != 200:
+            print(f"⚠️ Error {page.status} al acceder a la liga {league_id}")
+            continue
 
-                    if not all_matches:
-                        # Reintento: a veces los datos están en leagueView
-                        all_matches = data.get('leagueView', {}).get('matches', {}).get('allMatches', [])
-
-                    if all_matches:
-                        for m in all_matches:
-                            match_data = {
-                                "id": str(m['id']),
-                                "league_id": league_id,
-                                "season": "2025/2026",
-                                "home_team": m['home']['name'],
-                                "away_team": m['away']['name'],
-                                "match_date": m['status']['utcTime'],
-                                "status": "Finished" if m['status'].get('finished') else "Upcoming",
-                                "processed": False
-                            }
-                            supabase.table("matches").upsert(match_data).execute()
-                        
-                        print(f"✅ ¡ÉXITO! Datos cargados para liga {league_id}")
-                        success = True
-                        break # Pasamos a la siguiente liga
-                except Exception as e:
-                    print(f"❌ Error al procesar JSON de {league_id}: {e}")
+        try:
+            # FotMob guarda casi todos sus datos en un objeto JSON dentro de un script 'next-data'
+            # Buscamos el script que contiene el estado de la página
+            data_script = page.css('script#__NEXT_DATA__::text').first()
             
-        if not success:
-            print(f"⚠️ No se pudo obtener datos para liga {league_id} tras varios intentos.")
+            if data_script:
+                json_data = json.loads(data_script)
+                # Navegamos por la estructura de Next.js para encontrar los partidos
+                # La ruta suele ser props -> pageProps -> fallback -> (url de la api)
+                # O directamente en props -> pageProps -> matches
+                all_matches = []
+                
+                # Intentamos encontrar la lista de partidos en el JSON embebido
+                props = json_data.get('props', {}).get('pageProps', {})
+                fixtures = props.get('fixtures', {}).get('allMatches', [])
+                
+                if not fixtures:
+                    # Ruta alternativa en algunas versiones de la web
+                    fixtures = props.get('fallback', {}).get(next(iter(props.get('fallback', {})), {}), {}).get('allMatches', [])
+
+                if fixtures:
+                    for m in fixtures:
+                        match_data = {
+                            "id": str(m['id']),
+                            "league_id": league_id,
+                            "season": "2025/2026",
+                            "home_team": m['home']['name'],
+                            "away_team": m['away']['name'],
+                            "match_date": m['status']['utcTime'],
+                            "status": "Finished" if m['status'].get('finished') else "Upcoming",
+                            "processed": False
+                        }
+                        supabase.table("matches").upsert(match_data).execute()
+                    print(f"✅ Cargados {len(fixtures)} partidos para la liga {league_id}")
+                else:
+                    print(f"❓ No se encontraron partidos en el JSON de la liga {league_id}")
+            else:
+                print(f"❌ No se pudo encontrar el script de datos para la liga {league_id}")
+
+        except Exception as e:
+            print(f"❌ Error procesando liga {league_id}: {str(e)}")
 
 if __name__ == "__main__":
     seed()
