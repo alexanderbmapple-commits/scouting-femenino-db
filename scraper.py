@@ -9,7 +9,6 @@ class FotMobScraper:
         self.fetcher.configure(adaptive=True)
 
     def get_match_data(self, match_id):
-        # URL limpia para evitar el error 404 visto en los logs
         url = f"https://www.fotmob.com/matches/{match_id}"
         time.sleep(random.uniform(5.0, 8.0))
         
@@ -20,27 +19,25 @@ class FotMobScraper:
 
         try:
             response = self.fetcher.get(url, headers=headers)
-            print(f">>> MATCH {match_id} | STATUS: {response.status}", flush=True)
-            
             if response.status == 200:
-                script_content = response.css('script#__NEXT_DATA__::text').first()
-                if script_content:
-                    return json.loads(script_content)
+                script = response.css('script#__NEXT_DATA__::text').first()
+                if script:
+                    return json.loads(script)
             return None
-        except Exception as e:
-            print(f"❌ Error en match {match_id}: {e}", flush=True)
+        except:
             return None
 
     def process_metrics(self, data):
-        # Extraemos la rama de datos que nos interesa
+        # Navegación segura por el JSON de FotMob
         props = data.get('props', {}).get('pageProps', {})
         content = props.get('content', {})
         details = content.get('matchDetails', {})
         
+        # Mapeo de campos para tu tabla player_match_stats
         return {
-            "match_id": details.get('id'),
+            "match_id": details.get('matchId') or details.get('id'),
             "home_team": details.get('homeTeam', {}).get('name'),
             "away_team": details.get('awayTeam', {}).get('name'),
             "match_time": details.get('matchTimeUTC'),
-            "data_extra": json.dumps(content) # Guardamos el bloque importante
+            "data_extra": json.dumps(content) # Guardamos el bloque central por seguridad
         }
