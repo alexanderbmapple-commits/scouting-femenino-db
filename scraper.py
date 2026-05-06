@@ -6,42 +6,54 @@ from scrapling import Fetcher
 
 class FotMobScraper:
     def __init__(self):
-        print(">>> USANDO ARTILLERÍA PESADA: STEALTH BROWSER", flush=True)
+        print(">>> MOTOR DE EXTRACCIÓN HTML ACTIVADO", flush=True)
         self.fetcher = Fetcher()
-        # Intentamos forzar el modo 'adaptive' con el motor stealth 
-        # para que use Playwright por debajo si está instalado
         self.fetcher.configure(adaptive=True)
 
     def get_match_data(self, match_id):
-        # Intentamos una URL alternativa que a veces no está tan protegida
-        url = f"https://www.fotmob.com/es/match/{match_id}"
+        # Usamos la URL que ya sabemos que funciona según tu última captura
+        url = f"https://www.fotmob.com/es/matches/{match_id}"
         
-        # Pausa MUY larga. Si la IP está marcada, ir rápido solo empeora el ban.
-        time.sleep(random.uniform(15.0, 25.0))
+        # Mantenemos el sigilo pero bajamos un poco la pausa ya que el 200 es estable
+        time.sleep(random.uniform(5.0, 10.0))
         
-        # Cambiamos el referer a Google para simular tráfico de búsqueda orgánico
         headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "referer": "https://www.google.com/",
-            "upgrade-insecure-requests": "1"
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
 
         try:
-            print(f">>> Intentando acceso orgánico al partido {match_id}...", flush=True)
+            print(f">>> Leyendo HTML del partido {match_id}...", flush=True)
             response = self.fetcher.get(url, headers=headers)
             
-            print(f">>> STATUS RECIBIDO: {response.status}", flush=True)
-            
             if response.status == 200:
-                print(f"✅ ✅ ✅ ¡LO LOGRAMOS! El HTML ha respondido.", flush=True)
-                match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)
+                # El JSON está encerrado en <script id="__NEXT_DATA__" ...>...</script>
+                # Usamos un regex más robusto por si hay espacios o saltos de línea
+                pattern = r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>'
+                match = re.search(pattern, response.text, re.DOTALL)
+                
                 if match:
-                    all_data = json.loads(match.group(1))
+                    print("✅ Bloque de datos localizado. Procesando...", flush=True)
+                    raw_json = match.group(1).strip()
+                    all_data = json.loads(raw_json)
+                    
+                    # Estructura típica de Next.js en FotMob:
+                    # props -> pageProps -> content -> matchDetails
                     props = all_data.get('props', {}).get('pageProps', {})
-                    return props.get('content', {}).get('matchDetails', {})
+                    match_details = props.get('content', {}).get('matchDetails', {})
+                    
+                    if match_details:
+                        return match_details
+                    else:
+                        print("⚠️ El JSON se leyó pero 'matchDetails' está vacío.", flush=True)
+                else:
+                    print("❌ Error: No se encontró la etiqueta __NEXT_DATA__.", flush=True)
+            else:
+                print(f"❌ Error de red: Status {response.status}", flush=True)
             
             return None
                 
         except Exception as e:
-            print(f">>> ERROR EN MOTOR: {str(e)}", flush=True)
+            print(f">>> ERROR DE EXTRACCIÓN: {str(e)}", flush=True)
             return None
