@@ -16,7 +16,7 @@ seasons = ["2023/2024"]
 def seed():
     for league_id in leagues:
         for season in seasons:
-            target_url = f"https://www.fotmob.com/api/leagues?id={league_id}&season={season}"
+            target_url = f"https://www.fotmob.com/api/league?id={league_id}&season={season}"
             print(f"Scrapeando sin muros: {target_url}")
             
             # Usamos Scrapling para saltar el bloqueo
