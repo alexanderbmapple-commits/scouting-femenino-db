@@ -5,44 +5,45 @@ from scrapling import Fetcher
 
 class FotMobScraper:
     def __init__(self):
-        print(">>> ACTIVANDO MODO ADAPTATIVO DE SCRA PLING", flush=True)
-        # 1. Inicializamos el fetcher
-        self.fetcher = Fetcher()
-        # 2. Usamos el argumento que tu log confirma que existe (Línea 34)
-        # Esto activa el motor de evasión inteligente automáticamente
-        self.fetcher.configure(adaptive=True)
+        print(">>> MOTOR SCRA PLING: MODO CAMALEÓN ACTIVADO", flush=True)
+        # No guardamos el fetcher en el init para forzar uno nuevo cada vez
         
     def get_match_data(self, match_id):
         url = f"https://www.fotmob.com/api/matchDetails?matchId={match_id}"
         
-        # Pausa humana más larga: FotMob tiene un firewall muy sensible
-        wait_time = random.uniform(8.0, 15.0)
-        print(f">>> Sigilo: Esperando {wait_time:.2f}s para ID {match_id}...", flush=True)
-        time.sleep(wait_time)
+        # Pausa aleatoria MUY agresiva (necesitamos que el firewall se "olvide" de nosotros)
+        time.sleep(random.uniform(10.0, 20.0))
         
-        # En modo adaptive, Scrapling gestiona casi todo, pero forzamos el Referer
-        headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Referer": f"https://www.fotmob.com/es/matches/{match_id}",
-            "X-Requested-With": "XMLHttpRequest"
-        }
-
         try:
-            print(f">>> Scrapling Adaptive: Pidiendo datos de {match_id}...", flush=True)
-            response = self.fetcher.get(url, headers=headers)
+            # CREAMOS UN FETCH_ER NUEVO PARA CADA PARTIDO
+            # Esto genera una huella digital (Fingerprint) totalmente distinta cada vez
+            fetcher = Fetcher(auto_match=True)
+            
+            # Usamos el motor 'adaptive' que el sistema nos recomendó en el log anterior
+            fetcher.configure(adaptive=True)
+            
+            headers = {
+                "Accept": "application/json, text/plain, */*",
+                "Referer": f"https://www.fotmob.com/es/matches/{match_id}",
+                "X-Requested-With": "XMLHttpRequest",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+            }
+
+            print(f">>> Intentando ID {match_id} con identidad nueva...", flush=True)
+            response = fetcher.get(url, headers=headers)
             
             print(f">>> STATUS RECIBIDO: {response.status}", flush=True)
             
             if response.status == 200:
-                print(f"✅ ✅ ✅ ¡LO TENEMOS! Muro saltado con éxito.", flush=True)
+                print(f"✅ ✅ ✅ ¡MURO SALTADO! Datos de {match_id} capturados.", flush=True)
                 return json.loads(response.text)
             
-            # Si da 404 aquí, es que la IP de GitHub está totalmente quemada
             elif response.status == 404:
-                print(f"⚠️ El servidor sigue bloqueando la IP (404).", flush=True)
+                print(f"❌ La IP de GitHub sigue quemada para el ID {match_id}.", flush=True)
                 
             return None
                 
         except Exception as e:
-            print(f">>> ERROR EN EL MOTOR: {str(e)}", flush=True)
+            print(f">>> ERROR EN IDENTIDAD: {str(e)}", flush=True)
             return None
