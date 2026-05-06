@@ -11,7 +11,7 @@ supabase = create_client(url, key)
 fetcher = StealthyFetcher()
 
 leagues = [50, 47, 42] # 50: Liga F (España), 47: WSL (Inglaterra), 42: Champions Femenina
-seasons = ["2023/2024"]
+seasons = ["2023-2024"]
 
 def seed():
     for league_id in leagues:
