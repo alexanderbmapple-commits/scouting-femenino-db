@@ -10,39 +10,43 @@ supabase = create_client(url, key)
 
 fetcher = StealthyFetcher()
 
-# IDs: 10385 (España), 209 (Inglaterra), 9812 (Champions), 212 (Francia)
+# IDs: 10385 (ES), 209 (UK), 9812 (Champions), 212 (FR)
 leagues = [10385, 209, 9812, 212]
 
 def seed():
     for league_id in leagues:
-        # Usamos la URL principal de la liga para asegurar el 200 OK
-        target_url = f"https://www.fotmob.com/leagues/{league_id}/overview/"
-        print(f"--- Extrayendo Liga {league_id} desde {target_url} ---")
+        # Probamos con la URL base de la liga, que es la más estable
+        target_url = f"https://www.fotmob.com/leagues/{league_id}/"
+        print(f"--- Extrayendo Liga {league_id} ---")
         
         page = fetcher.fetch(target_url)
         
         if page.status != 200:
-            print(f"⚠️ Error {page.status} al acceder a la liga {league_id}")
+            print(f"⚠️ Salto liga {league_id}: Status {page.status}")
             continue
 
         try:
-            # CORRECCIÓN AQUÍ: .first sin paréntesis
-            data_script = page.css('script#__NEXT_DATA__::text').first
+            # Extraemos el contenido crudo del script NEXT_DATA
+            # Usamos .raw para obtener el string puro y evitar el error de la captura
+            data_element = page.css('script#__NEXT_DATA__::text').first
             
-            if data_script:
-                json_data = json.loads(data_script)
+            if data_element:
+                # El .raw asegura que sea un string para json.loads
+                json_text = data_element.raw.strip()
+                json_data = json.loads(json_text)
+                
                 props = json_data.get('props', {}).get('pageProps', {})
                 
-                # Buscamos partidos en la sección 'overview' o 'fixtures' dentro del JSON
+                # Intentamos encontrar los partidos en las distintas secciones del JSON
                 fixtures = []
-                # Intentamos varias rutas comunes en el JSON de FotMob
-                if 'overview' in props and 'leagueMatches' in props['overview']:
-                    fixtures = props['overview']['leagueMatches']
-                elif 'fallback' in props:
-                    # A veces los datos están en el cache de fallback
-                    for key in props['fallback']:
-                        if 'allMatches' in props['fallback'][key]:
-                            fixtures = props['fallback'][key]['allMatches']
+                # Ruta 1: Overview
+                fixtures = props.get('overview', {}).get('leagueMatches', [])
+                
+                # Ruta 2: Si la anterior falla, buscamos en el fallback de la API
+                if not fixtures and 'fallback' in props:
+                    for k in props['fallback']:
+                        if 'allMatches' in props['fallback'][k]:
+                            fixtures = props['fallback'][k]['allMatches']
                             break
 
                 if fixtures:
@@ -58,14 +62,14 @@ def seed():
                             "processed": False
                         }
                         supabase.table("matches").upsert(match_data).execute()
-                    print(f"✅ Éxito: {len(fixtures)} partidos sincronizados para {league_id}")
+                    print(f"✅ ¡Éxito! {len(fixtures)} partidos cargados para {league_id}")
                 else:
-                    print(f"❓ No se encontraron partidos listados para {league_id}")
+                    print(f"❓ No se encontraron datos de partidos en el JSON de {league_id}")
             else:
-                print(f"❌ No se detectó el bloque de datos (__NEXT_DATA__) para {league_id}")
+                print(f"❌ No se encontró el bloque de datos en el HTML de {league_id}")
 
         except Exception as e:
-            print(f"❌ Error en liga {league_id}: {str(e)}")
+            print(f"❌ Error procesando {league_id}: {str(e)}")
 
 if __name__ == "__main__":
     seed()
