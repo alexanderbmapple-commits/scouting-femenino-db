@@ -10,8 +10,8 @@ supabase = create_client(url, key)
 # Inicializamos el fetcher de Scrapling (el "disfraz" profesional)
 fetcher = StealthyFetcher()
 
-leagues = [10385, 209, 9812, 208, 212]
-seasons = ["2023/2024", "2024/2025"]
+leagues = [50, 47, 42] # 50: Liga F (España), 47: WSL (Inglaterra), 42: Champions Femenina
+seasons = ["2023/2024"]
 
 def seed():
     for league_id in leagues:
